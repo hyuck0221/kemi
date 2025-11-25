@@ -27,6 +27,16 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.jar {
+    enabled = true
+    archiveClassifier.set("")
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveClassifier.set("boot")
+}
+
 kotlin {
     jvmToolchain(21)
 }
