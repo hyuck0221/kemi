@@ -16,8 +16,6 @@ class GeminiGenerator(
     val properties: GeminiProperties,
     private val defaultPrompt: String? = null,
 ) {
-    var prompt: String? = null
-
     private val restTemplate = RestTemplate().apply {
         errorHandler = object : DefaultResponseErrorHandler() {
             override fun hasError(statusCode: HttpStatusCode): Boolean = false
@@ -28,7 +26,7 @@ class GeminiGenerator(
     val currentModel: String
         get() = properties.models[modelIdx]
 
-    fun directAsk(question: String, model: String): GeminiResponse? {
+    fun directAsk(question: String, model: String, prompt: String? = null): GeminiResponse? {
 
         val url = properties.generateContentUrl(model)
         val requestBody = GeminiRequest(question, defaultPrompt, prompt)
@@ -41,26 +39,24 @@ class GeminiGenerator(
         )
     }
 
-    fun ask(question: String): String? {
+    fun ask(question: String, prompt: String? = null): String? {
         return try {
             val response = directAsk(question, currentModel)
             fallbackCnt = 0
             response?.answer
         } catch (e: Exception) {
-            fallback().ask(question)
+            fallback().ask(question, prompt)
         }
     }
 
-    inline fun <reified T : Any> askWithClass(question: String): T? {
+    inline fun <reified T : Any> askWithClass(question: String, prompt: String? = null): T? {
         val enhancedPrompt = SchemaGenerator.generatePrompt<T>(question)
-        return ask(enhancedPrompt)
+        return ask(enhancedPrompt, prompt)
             ?.replaceFirst("```json", "")
             ?.replace("```", "")
             ?.trim()
             ?.jsonToClass()
     }
-
-    fun prompt(prompt: String?) = this.apply { this.prompt = prompt }
 
     fun fallback() = this.apply {
         fallbackCnt++

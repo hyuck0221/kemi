@@ -4,7 +4,7 @@ Spring Boot 애플리케이션을 위한 Gemini API 라이브러리입니다.
 
 ## 특징
 
-- ✅ Spring Boot 2.5+ 및 3.x 버전 모두 지원
+- ✅ Spring Boot 3.1+ 지원
 - ✅ 자동 설정 (Auto Configuration)
 - ✅ Type-safe Configuration Properties
 - ✅ IDE 자동완성 지원
@@ -15,8 +15,8 @@ Spring Boot 애플리케이션을 위한 Gemini API 라이브러리입니다.
 
 - **Java**: 17+
 - **Kotlin**: 1.9+
-- **Spring Boot**: 2.5.x ~ 3.x
-- **Spring Framework**: 5.3.x ~ 6.x
+- **Spring Boot**: 3.1+
+- **Spring Framework**: 6.0+
 
 ## 설치
 
