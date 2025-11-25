@@ -14,7 +14,7 @@ Spring Boot 애플리케이션을 위한 Gemini API 라이브러리입니다.
 ## 지원 버전
 
 - **Java**: 17+
-- **Kotlin**: 1.9+
+- **Kotlin**: 2.0+
 - **Spring Boot**: 3.1+
 - **Spring Framework**: 6.0+
 
