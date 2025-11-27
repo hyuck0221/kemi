@@ -41,7 +41,7 @@ class GeminiGenerator(
 
     fun ask(question: String, prompt: String? = null): String? {
         return try {
-            val response = directAsk(question, currentModel)
+            val response = directAsk(question, currentModel, prompt)
             fallbackCnt = 0
             response?.answer
         } catch (e: Exception) {
