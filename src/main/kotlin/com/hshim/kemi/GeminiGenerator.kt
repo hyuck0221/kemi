@@ -4,18 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.hshim.kemi.config.GeminiProperties
 import com.hshim.kemi.model.GeminiRequest
 import com.hshim.kemi.model.GeminiResponse
+import com.hshim.kemi.model.GeminiStreamResponse
 import com.hshim.kemi.model.StreamResponseHandler
 import com.hshim.kemi.schema.SchemaGenerator
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
+import com.hshim.kemi.schema.SchemaGenerator.processStreamResponse
+import org.springframework.http.*
 import org.springframework.http.client.ClientHttpResponse
 import org.springframework.web.client.DefaultResponseErrorHandler
 import org.springframework.web.client.RestTemplate
 import util.ClassUtil.jsonToClass
-import java.io.BufferedReader
 
 class GeminiGenerator(
     val properties: GeminiProperties,
@@ -105,7 +102,8 @@ class GeminiGenerator(
         handler: StreamResponseHandler,
         apiKey: String = currentApiKey
     ): String? {
-        val url = properties.generateContentUrl(model, apiKey).replace("generateContent", "streamGenerateContent")
+        val url = properties.generateContentUrl(model, apiKey)
+            .replace("generateContent", "streamGenerateContent") + "&alt=sse"
         val requestBody = GeminiRequest(question, defaultPrompt, prompt)
 
         val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
@@ -121,31 +119,6 @@ class GeminiGenerator(
                 processStreamResponse(response, handler)
             }
         )
-    }
-
-    private fun processStreamResponse(response: ClientHttpResponse, handler: StreamResponseHandler): String {
-        val fullText = StringBuilder()
-
-        response.body.bufferedReader().use { reader ->
-            reader.lineSequence().forEach { line ->
-                if (line.startsWith("data: ")) {
-                    val jsonData = line.substring(6).trim()
-                    if (jsonData.isNotEmpty() && jsonData != "[DONE]") {
-                        try {
-                            val chunk = objectMapper.readValue(jsonData, GeminiResponse::class.java)
-                            chunk.answer?.let { text ->
-                                handler.onChunk(text)
-                                fullText.append(text)
-                            }
-                        } catch (e: Exception) {
-                            // Skip invalid JSON chunks
-                        }
-                    }
-                }
-            }
-        }
-
-        return fullText.toString()
     }
 
     fun fallback() = this.apply {

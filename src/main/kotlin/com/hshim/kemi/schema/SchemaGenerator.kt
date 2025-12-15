@@ -2,9 +2,14 @@ package com.hshim.kemi.schema
 
 import com.hshim.kemi.annotation.GeminiField
 import com.hshim.kemi.annotation.GeminiPrompt
+import com.hshim.kemi.model.GeminiStreamResponse
+import com.hshim.kemi.model.StreamResponseHandler
+import org.springframework.http.client.ClientHttpResponse
+import util.ClassUtil.jsonToClass
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
+import kotlin.sequences.forEach
 
 /**
  * Generates JSON schema description from Kotlin data classes
@@ -88,5 +93,30 @@ object SchemaGenerator {
             .replace("java.lang.", "")
             .substringAfter(".")
             .replace("?", "")
+    }
+
+    fun processStreamResponse(response: ClientHttpResponse, handler: StreamResponseHandler): String {
+        val fullText = StringBuilder()
+
+        response.body.bufferedReader().use { reader ->
+            reader.lineSequence().forEach { line ->
+                if (line.startsWith("data: ")) {
+                    val jsonData = line.substring(6).trim()
+                    if (jsonData.isNotEmpty() && jsonData != "[DONE]") {
+                        try {
+                            val chunk = jsonData.jsonToClass<GeminiStreamResponse>()
+                            chunk.text?.let { text ->
+                                handler.onChunk(text)
+                                fullText.append(text)
+                            }
+                        } catch (e: Exception) {
+                            // Skip invalid JSON chunks
+                        }
+                    }
+                }
+            }
+        }
+
+        return fullText.toString()
     }
 }
