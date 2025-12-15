@@ -4,7 +4,9 @@ kemi:
     enabled: true
 
     # Gemini API Key (Required)
-    api-key: YOUR_API_KEY_HERE
+    api-keys:
+      - YOUR_API_KEY_1_HERE
+      - YOUR_API_KEY_2_HERE
 
     # Gemini API Base URL
     base-url: https://generativelanguage.googleapis.com

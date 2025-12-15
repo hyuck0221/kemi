@@ -1,0 +1,80 @@
+{
+  "groups": [
+    {
+      "name": "kemi.gemini",
+      "type": "com.hshim.kemi.config.GeminiProperties",
+      "sourceType": "com.hshim.kemi.config.GeminiProperties",
+      "description": "Configuration properties for Gemini API integration"
+    }
+  ],
+  "properties": [
+    {
+      "name": "kemi.gemini.api-keys",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.hshim.kemi.config.GeminiProperties",
+      "description": "List of Gemini API Keys for fallback support. At least one API key must be provided.",
+      "required": true
+    },
+    {
+      "name": "kemi.gemini.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.hshim.kemi.config.GeminiProperties",
+      "description": "Single Gemini API Key (deprecated, use api-keys instead)",
+      "deprecated": true,
+      "deprecation": {
+        "reason": "Use api-keys instead for better fallback support",
+        "replacement": "kemi.gemini.api-keys"
+      }
+    },
+    {
+      "name": "kemi.gemini.base-url",
+      "type": "java.lang.String",
+      "sourceType": "com.hshim.kemi.config.GeminiProperties",
+      "description": "Gemini API base URL",
+      "defaultValue": "https://generativelanguage.googleapis.com"
+    },
+    {
+      "name": "kemi.gemini.models",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.hshim.kemi.config.GeminiProperties",
+      "description": "List of Gemini model names to use for fallback",
+      "defaultValue": ["gemini-2.5-pro"]
+    }
+  ],
+  "hints": [
+    {
+      "name": "kemi.gemini.api-keys",
+      "values": [],
+      "providers": [
+        {
+          "name": "any"
+        }
+      ]
+    },
+    {
+      "name": "kemi.gemini.models",
+      "values": [
+        {
+          "value": "gemini-2.5-pro",
+          "description": "Gemini 2.5 Pro - Most capable model"
+        },
+        {
+          "value": "gemini-2.5-flash",
+          "description": "Gemini 2.5 Flash - Fast and efficient"
+        },
+        {
+          "value": "gemini-2.5-flash-lite",
+          "description": "Gemini 2.5 Flash Lite - Lightweight version"
+        },
+        {
+          "value": "gemini-2.0-flash",
+          "description": "Gemini 2.0 Flash - Previous generation fast model"
+        },
+        {
+          "value": "gemini-2.0-flash-lite",
+          "description": "Gemini 2.0 Flash Lite - Previous generation lightweight"
+        }
+      ]
+    }
+  ]
+}

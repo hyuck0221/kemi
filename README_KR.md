@@ -1,29 +1,29 @@
-# Kemi - Gemini API for Spring Boot
+# Kemi - Spring Boot용 Gemini API
 
-A lightweight Spring Boot library for integrating Google's Gemini API with automatic model fallback and type-safe configuration.
+자동 모델 폴백과 타입 안전 설정을 갖춘 Google Gemini API Spring Boot 통합 라이브러리입니다.
 
-[한국어 문서](README_KR.md)
+[English Documentation](README.md)
 
-## Features
+## 특징
 
-- ✅ Spring Boot 3.1+ support
-- ✅ Auto Configuration
+- ✅ Spring Boot 3.1+ 지원
+- ✅ 자동 설정 (Auto Configuration)
 - ✅ Type-safe Configuration Properties
-- ✅ IDE auto-completion support
-- ✅ Automatic model fallback
-- ✅ Flexible API key configuration (direct value or callback)
-- ✅ Structured response mapping to data classes
+- ✅ IDE 자동완성 지원
+- ✅ AI 모델 자동 fallback 지원
+- ✅ 유연한 API 키 설정 (직접 입력 또는 콜백)
+- ✅ 데이터 클래스로의 구조화된 응답 매핑
 
-## Requirements
+## 지원 버전
 
 - **JVM**: 8+
 - **Kotlin**: 1.9+
 - **Spring Boot**: 2.7+
 - **Spring Framework**: 5.3+
 
-## Installation
+## 설치
 
-### Add JitPack Repository
+### JitPack 저장소 추가
 
 #### Gradle (Kotlin DSL)
 
@@ -70,18 +70,18 @@ dependencies {
 </dependencies>
 ```
 
-## Configuration
+## 설정
 
 ### application.yml
 
 ```yaml
 kemi:
   gemini:
-    api-keys:  # Required: At least one API key must be provided
+    api-keys:  # 필수: 최소 1개 이상의 API 키를 입력해야 합니다
       - your-first-api-key
       - your-second-api-key
       - your-third-api-key
-    base-url: https://generativelanguage.googleapis.com  # Optional
+    base-url: https://generativelanguage.googleapis.com  # 선택
     models:
       - gemini-2.5-flash
       - gemini-2.5-flash-lite
@@ -89,19 +89,19 @@ kemi:
       - gemini-2.0-flash-lite
 ```
 
-### API Key Configuration Options
+### API 키 설정 옵션
 
-#### Option 1: Multiple API Keys (Recommended)
+#### 옵션 1: 여러 API 키 (권장)
 
 ```yaml
 kemi:
   gemini:
-    api-keys:  # Required
+    api-keys:  # 필수
       - your-first-api-key
       - your-second-api-key
 ```
 
-#### Option 2: Callback Function (Programmatic)
+#### 옵션 2: 콜백 함수 (프로그래밍 방식)
 
 ```kotlin
 import com.hshim.kemi.config.GeminiProperties
@@ -115,18 +115,18 @@ class GeminiConfig(
 ) {
     @Bean
     fun configureApiKeyProvider() {
-        // Example: Load API key from external service or secret manager
+        // 예: 외부 서비스나 시크릿 관리자에서 API 키 로드
         geminiProperties.apiKeyProvider = {
-            // Your custom logic to retrieve API key
+            // API 키를 가져오는 커스텀 로직
             System.getenv("GEMINI_API_KEY") ?: "fallback-key"
         }
     }
 }
 ```
 
-## Usage
+## 사용 예시
 
-### Basic Usage
+### 기본 사용법
 
 ```kotlin
 import com.hshim.kemi.GeminiGenerator
@@ -137,13 +137,13 @@ class MyService(
     private val geminiGenerator: GeminiGenerator
 ) {
     fun generateResponse() {
-        val answer = geminiGenerator.ask("Hello, how are you?")
+        val answer = geminiGenerator.ask("안녕하세요, 어떻게 지내세요?")
         println(answer)
     }
 }
 ```
 
-### Custom Prompt
+### 커스텀 프롬프트
 
 ```kotlin
 @Service
@@ -152,17 +152,17 @@ class PromptService(
 ) {
     fun generateWithPrompt() {
         val result = geminiGenerator.ask(
-            question = "Explain quantum computing",
-            prompt = "You are a helpful physics professor."
+            question = "양자 컴퓨팅을 설명해주세요",
+            prompt = "당신은 친절한 물리학 교수입니다."
         )
         println(result)
     }
 }
 ```
 
-### Structured Response (Data Class Mapping)
+### 구조화된 응답 (데이터 클래스 매핑)
 
-#### Basic Usage
+#### 기본 사용법
 
 ```kotlin
 data class Product(
@@ -177,7 +177,7 @@ class ProductService(
 ) {
     fun generateProduct() {
         val product = geminiGenerator.askWithClass<Product>(
-            "Create a product description for a smartphone"
+            "스마트폰에 대한 제품 설명을 작성해주세요"
         )
         println(product?.name)
         println(product?.price)
@@ -186,26 +186,26 @@ class ProductService(
 }
 ```
 
-#### Advanced Usage with Annotations
+#### 어노테이션을 사용한 고급 사용법
 
-Use `@GeminiPrompt` and `@GeminiField` annotations to provide additional context to the AI model:
+`@GeminiPrompt`와 `@GeminiField` 어노테이션을 사용하여 AI 모델에 추가 컨텍스트를 제공할 수 있습니다:
 
 ```kotlin
 import com.hshim.kemi.annotation.GeminiPrompt
 import com.hshim.kemi.annotation.GeminiField
 
-@GeminiPrompt("Generate accurate and realistic product information for e-commerce")
+@GeminiPrompt("전자상거래를 위한 정확하고 현실적인 제품 정보를 생성하세요")
 data class Product(
-    @GeminiField("Product name, should be clear and concise")
+    @GeminiField("제품명, 명확하고 간결해야 함")
     val name: String,
 
-    @GeminiField("Price in USD, must be a positive integer")
+    @GeminiField("USD 가격, 양의 정수여야 함")
     val price: Int,
 
-    @GeminiField("Detailed product description, 2-3 sentences")
+    @GeminiField("상세한 제품 설명, 2-3문장")
     val description: String,
 
-    @GeminiField("Product category (e.g., Electronics, Clothing, Food)")
+    @GeminiField("제품 카테고리 (예: 전자제품, 의류, 식품)")
     val category: String
 )
 
@@ -215,15 +215,15 @@ class AdvancedProductService(
 ) {
     fun generateDetailedProduct() {
         val product = geminiGenerator.askWithClass<Product>(
-            "Create a premium smartphone product"
+            "프리미엄 스마트폰 제품을 생성해주세요"
         )
-        // AI will use the annotations to generate more accurate results
+        // AI가 어노테이션을 사용하여 더 정확한 결과를 생성합니다
         println(product)
     }
 }
 ```
 
-### Using Specific Model
+### 특정 모델 직접 사용
 
 ```kotlin
 @Service
@@ -232,7 +232,7 @@ class ModelService(
 ) {
     fun useSpecificModel() {
         val response = geminiGenerator.directAsk(
-            question = "What is artificial intelligence?",
+            question = "인공지능이 무엇인가요?",
             model = "gemini-2.5-flash"
         )
         println(response?.answer)
@@ -240,9 +240,9 @@ class ModelService(
 }
 ```
 
-### Automatic Model and API Key Fallback
+### 자동 모델 및 API 키 폴백
 
-When a request fails, Kemi automatically retries with the next configured API key, then the next model:
+요청이 실패하면 Kemi는 자동으로 다음 설정된 API 키로 재시도하고, 이후 다음 모델로 이동합니다:
 
 ```kotlin
 @Service
@@ -251,76 +251,76 @@ class FallbackExample(
 ) {
     fun generateWithFallback() {
         try {
-            // Tries all API keys for gemini-2.5-flash, then moves to next model
-            // Example: key1+model1 → key2+model1 → key3+model1 → key1+model2 ...
-            val answer = geminiGenerator.ask("Complex question")
+            // gemini-2.5-flash의 모든 API 키를 시도한 후 다음 모델로 이동
+            // 예: key1+model1 → key2+model1 → key3+model1 → key1+model2 ...
+            val answer = geminiGenerator.ask("복잡한 질문")
             println(answer)
         } catch (e: IllegalStateException) {
-            // Thrown when all combinations (models × API keys) are exhausted
-            println("All fallback options exhausted")
+            // 모든 조합 (모델 × API 키)이 소진되면 발생
+            println("모든 폴백 옵션이 소진되었습니다")
         }
     }
 }
 ```
 
-## Configuration Properties
+## 설정 속성
 
-| Property | Type | Required | Default | Description |
-|----------|------|----------|---------|-------------|
-| `kemi.gemini.api-keys` | List<String> | ✅ | - | List of Gemini API Keys for fallback (at least 1 required) |
-| `kemi.gemini.base-url` | String | ❌ | `https://generativelanguage.googleapis.com` | API base URL |
-| `kemi.gemini.models` | List<String> | ❌ | `["gemini-2.5-pro"]` | List of model names for fallback |
+| 속성 | 타입 | 필수 | 기본값 | 설명 |
+|------|------|------|--------|------|
+| `kemi.gemini.api-keys` | List<String> | ✅ | - | 폴백을 위한 Gemini API 키 목록 (최소 1개 필수) |
+| `kemi.gemini.base-url` | String | ❌ | `https://generativelanguage.googleapis.com` | API 기본 URL |
+| `kemi.gemini.models` | List<String> | ❌ | `["gemini-2.5-pro"]` | 폴백을 위한 모델명 목록 |
 
-## API Reference
+## API 레퍼런스
 
 ### GeminiGenerator
 
-#### Methods
+#### 메서드
 
 - `ask(question: String, prompt: String? = null): String?`
-  - Basic question/answer with optional system prompt
-  - Returns: Generated text response
+  - 선택적 시스템 프롬프트를 사용한 기본 질의응답
+  - 반환: 생성된 텍스트 응답
 
 - `askWithClass<T>(question: String, prompt: String? = null): T?`
-  - Structured response mapped to data class
-  - Returns: Parsed instance of type T
+  - 데이터 클래스로 매핑된 구조화된 응답
+  - 반환: T 타입의 파싱된 인스턴스
 
 - `directAsk(question: String, model: String, prompt: String? = null, customApiKey: String? = null): GeminiResponse?`
-  - Direct API call with specific model and optional custom API key
-  - Returns: Full GeminiResponse object
+  - 특정 모델과 선택적 커스텀 API 키를 사용한 직접 API 호출
+  - 반환: 전체 GeminiResponse 객체
 
 - `currentModel: String`
-  - Property that returns currently active model name
+  - 현재 활성화된 모델명을 반환하는 프로퍼티
 
 - `currentApiKey: String`
-  - Property that returns currently active API key
+  - 현재 활성화된 API 키를 반환하는 프로퍼티
 
 ### GeminiProperties
 
-#### Methods
+#### 메서드
 
 - `getAllApiKeys(): List<String>`
-  - Returns all configured API keys
-  - Throws `IllegalStateException` if not configured
+  - 설정된 모든 API 키 반환
+  - 설정되지 않은 경우 `IllegalStateException` 발생
 
 - `getApiKey(index: Int = 0): String`
-  - Returns API key at specified index
-  - Falls back to first key if index is out of bounds
+  - 지정된 인덱스의 API 키 반환
+  - 인덱스가 범위를 벗어나면 첫 번째 키로 폴백
 
 - `generateContentUrl(model: String, apiKeyIndex: Int = 0): String`
-  - Generates complete API endpoint URL with API key at index
+  - 인덱스의 API 키로 완전한 API 엔드포인트 URL 생성
 
 - `generateContentUrl(model: String, customApiKey: String): String`
-  - Generates complete API endpoint URL with custom API key
+  - 커스텀 API 키로 완전한 API 엔드포인트 URL 생성
 
-#### Properties
+#### 프로퍼티
 
 - `apiKeyProvider: (() -> String)?`
-  - Callback function for dynamic API key retrieval
+  - 동적 API 키 검색을 위한 콜백 함수
 
-## Advanced Examples
+## 고급 예제
 
-### Dynamic API Key from AWS Secrets Manager
+### AWS Secrets Manager에서 동적 API 키 가져오기
 
 ```kotlin
 import com.hshim.kemi.config.GeminiProperties
@@ -344,7 +344,7 @@ class SecretManagerConfig(
 }
 ```
 
-### Environment-Based Configuration
+### 환경 기반 설정
 
 ```kotlin
 @Configuration
@@ -364,14 +364,14 @@ class EnvironmentConfig(
 }
 ```
 
-## License
+## 라이선스
 
-This project is licensed under the terms of the MIT license.
+이 프로젝트는 MIT 라이선스 조항에 따라 라이선스가 부여됩니다.
 
-## Contributing
+## 기여
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+기여를 환영합니다! Pull Request를 자유롭게 제출해 주세요.
 
-## Support
+## 지원
 
-For issues and questions, please use the [GitHub Issues](https://github.com/hyuck0221/kemi/issues) page.
+이슈 및 질문은 [GitHub Issues](https://github.com/hyuck0221/kemi/issues) 페이지를 이용해 주세요.
