@@ -1,5 +1,6 @@
 package com.hshim.kemi.config
 
+import com.hshim.kemi.GeminiChatGenerator
 import com.hshim.kemi.GeminiGenerator
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -8,9 +9,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Auto-configuration for GeminiGenerator
+ * Auto-configuration for Gemini API generators
  *
- * This configuration automatically creates a GeminiGenerator bean
+ * This configuration automatically creates GeminiGenerator and GeminiChatGenerator beans
  * when kemi.gemini.enabled is true (default)
  */
 @Configuration
@@ -30,5 +31,14 @@ class GeminiAutoConfiguration {
     @ConditionalOnMissingBean
     fun geminiGenerator(properties: GeminiProperties): GeminiGenerator {
         return GeminiGenerator(properties)
+    }
+
+    /**
+     * Creates a GeminiChatGenerator bean for conversational AI interactions
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun geminiChatGenerator(properties: GeminiProperties): GeminiChatGenerator {
+        return GeminiChatGenerator(properties)
     }
 }

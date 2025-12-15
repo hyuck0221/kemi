@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.hyuck0221:kemi:0.0.7")
+    implementation("com.github.hyuck0221:kemi:0.1.0")
 }
 ```
 
@@ -47,7 +47,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.hyuck0221:kemi:0.0.7'
+    implementation 'com.github.hyuck0221:kemi:0.1.0'
 }
 ```
 
@@ -65,7 +65,7 @@ dependencies {
     <dependency>
         <groupId>com.github.hyuck0221</groupId>
         <artifactId>kemi</artifactId>
-        <version>0.0.7</version>
+        <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
@@ -143,6 +143,29 @@ class MyService(
 }
 ```
 
+### Streaming Response (Real-time)
+
+Receive responses in real-time as they're generated:
+
+```kotlin
+@Service
+class StreamingService(
+    private val geminiGenerator: GeminiGenerator
+) {
+    fun streamResponse() {
+        val fullResponse = geminiGenerator.askStream(
+            question = "Write a long story about a robot",
+            handler = { chunk ->
+                // Called for each chunk as it arrives
+                print(chunk)  // Print immediately as it streams
+            }
+        )
+
+        println("\n\nComplete response: $fullResponse")
+    }
+}
+```
+
 ### Custom Prompt
 
 ```kotlin
@@ -159,6 +182,174 @@ class PromptService(
     }
 }
 ```
+
+### Chat-based Conversation (with History)
+
+Use `GeminiChatGenerator` to maintain conversation context across multiple messages:
+
+```kotlin
+@Service
+class ChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun havingConversation() {
+        // Create a new chat session
+        val chat = geminiChatGenerator.createSession()
+
+        // First message
+        val response1 = chat.sendMessage("Hello, my name is John")
+        println(response1) // "Hello John! How can I help you today?"
+
+        // Second message - AI remembers the context
+        val response2 = chat.sendMessage("What's my name?")
+        println(response2) // "Your name is John"
+
+        // Get conversation history
+        val history = chat.getHistory()
+        println("Total messages: ${history.size}")
+
+        // Clear history to start fresh
+        chat.clearHistory()
+    }
+}
+```
+
+#### Chat with System Prompt
+
+```kotlin
+@Service
+class TutorChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun createTutorSession() {
+        // Create chat session with system prompt
+        val chat = geminiChatGenerator.createSession(
+            systemPrompt = "You are a helpful math tutor. Explain concepts step by step."
+        )
+
+        chat.sendMessage("What is calculus?")
+        chat.sendMessage("Can you give me an example?")
+        chat.sendMessage("How does it relate to what you just said?")
+
+        // AI maintains context throughout the conversation
+    }
+}
+```
+
+#### Chat with Streaming
+
+```kotlin
+@Service
+class StreamingChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun streamingConversation() {
+        val chat = geminiChatGenerator.createSession()
+
+        // First message with streaming
+        chat.sendMessageStream("Tell me a story") { chunk ->
+            print(chunk)  // Prints each word as it arrives
+        }
+
+        println("\n---")
+
+        // Follow-up message (AI remembers the story)
+        chat.sendMessageStream("What was the main character's name?") { chunk ->
+            print(chunk)
+        }
+    }
+}
+```
+
+#### Managing Multiple Chat Sessions
+
+```kotlin
+@Service
+class MultiChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    private val userSessions = mutableMapOf<String, GeminiChatGenerator.ChatSession>()
+
+    fun getUserChat(userId: String): GeminiChatGenerator.ChatSession {
+        return userSessions.getOrPut(userId) {
+            geminiChatGenerator.createSession()
+        }
+    }
+
+    fun sendMessageForUser(userId: String, message: String): String? {
+        val chat = getUserChat(userId)
+        return chat.sendMessage(message)
+    }
+
+    fun clearUserHistory(userId: String) {
+        userSessions[userId]?.clearHistory()
+    }
+}
+```
+
+#### Custom API Keys and Models per Session
+
+```kotlin
+@Service
+class CustomSessionService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun createCustomSession() {
+        // Create session with specific API keys and models
+        val chat = geminiChatGenerator.createSession(
+            systemPrompt = "You are a helpful assistant",
+            apiKeys = listOf("key1", "key2", "key3"),
+            models = listOf("gemini-2.5-flash", "gemini-2.0-flash")
+        )
+
+        chat.sendMessage("Hello!")
+        // Uses only the specified API keys and models
+    }
+}
+```
+
+#### Session Persistence (Export/Restore)
+
+Save and restore chat sessions for long-term conversation storage:
+
+```kotlin
+@Service
+class SessionPersistenceService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun saveAndRestoreSession() {
+        // Create and use a session
+        val chat = geminiChatGenerator.createSession()
+        chat.sendMessage("Hello, my name is John")
+        chat.sendMessage("I like programming")
+
+        // Export session state for storage
+        val sessionState = chat.exportSession()
+
+        // Save to database, file, cache, etc.
+        saveToDatabase(sessionState)
+
+        // Later... restore the session
+        val restoredChat = geminiChatGenerator.restoreSession(sessionState)
+
+        // Continue the conversation with full context
+        val response = restoredChat.sendMessage("What do I like?")
+        println(response) // "You like programming"
+    }
+
+    private fun saveToDatabase(state: ChatSessionState) {
+        // Implementation: save state.apiKeys, state.models, state.history, etc.
+    }
+}
+```
+
+**ChatSessionState** includes:
+- `apiKeys`: List of API keys
+- `models`: List of model names
+- `history`: Conversation history
+- `defaultPrompt`: Default system prompt
+- `systemPrompt`: Session-specific system prompt
+- `baseUrl`: API base URL
 
 ### Structured Response (Data Class Mapping)
 

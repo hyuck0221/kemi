@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.hyuck0221:kemi:0.0.7")
+    implementation("com.github.hyuck0221:kemi:0.1.0")
 }
 ```
 
@@ -47,7 +47,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.hyuck0221:kemi:0.0.7'
+    implementation 'com.github.hyuck0221:kemi:0.1.0'
 }
 ```
 
@@ -65,7 +65,7 @@ dependencies {
     <dependency>
         <groupId>com.github.hyuck0221</groupId>
         <artifactId>kemi</artifactId>
-        <version>0.0.7</version>
+        <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
@@ -143,6 +143,29 @@ class MyService(
 }
 ```
 
+### 스트리밍 응답 (실시간)
+
+생성되는 대로 실시간으로 응답 받기:
+
+```kotlin
+@Service
+class StreamingService(
+    private val geminiGenerator: GeminiGenerator
+) {
+    fun streamResponse() {
+        val fullResponse = geminiGenerator.askStream(
+            question = "로봇에 대한 긴 이야기를 써주세요",
+            handler = { chunk ->
+                // 각 청크가 도착할 때마다 호출됨
+                print(chunk)  // 스트리밍되는 즉시 출력
+            }
+        )
+
+        println("\n\n완전한 응답: $fullResponse")
+    }
+}
+```
+
 ### 커스텀 프롬프트
 
 ```kotlin
@@ -159,6 +182,174 @@ class PromptService(
     }
 }
 ```
+
+### 채팅 기반 대화 (히스토리 유지)
+
+`GeminiChatGenerator`를 사용하여 여러 메시지에 걸쳐 대화 컨텍스트를 유지할 수 있습니다:
+
+```kotlin
+@Service
+class ChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun havingConversation() {
+        // 새 채팅 세션 생성
+        val chat = geminiChatGenerator.createSession()
+
+        // 첫 번째 메시지
+        val response1 = chat.sendMessage("안녕하세요, 제 이름은 John입니다")
+        println(response1) // "안녕하세요 John님! 무엇을 도와드릴까요?"
+
+        // 두 번째 메시지 - AI가 컨텍스트를 기억합니다
+        val response2 = chat.sendMessage("제 이름이 뭐죠?")
+        println(response2) // "당신의 이름은 John입니다"
+
+        // 대화 기록 가져오기
+        val history = chat.getHistory()
+        println("전체 메시지 수: ${history.size}")
+
+        // 기록 지우고 새로 시작
+        chat.clearHistory()
+    }
+}
+```
+
+#### 시스템 프롬프트와 함께 채팅
+
+```kotlin
+@Service
+class TutorChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun createTutorSession() {
+        // 시스템 프롬프트와 함께 채팅 세션 생성
+        val chat = geminiChatGenerator.createSession(
+            systemPrompt = "당신은 친절한 수학 튜터입니다. 개념을 단계별로 설명해주세요."
+        )
+
+        chat.sendMessage("미적분학이 무엇인가요?")
+        chat.sendMessage("예시를 들어주실 수 있나요?")
+        chat.sendMessage("방금 말씀하신 것과 어떻게 연관되나요?")
+
+        // AI가 대화 전체에 걸쳐 컨텍스트를 유지합니다
+    }
+}
+```
+
+#### 스트리밍 채팅
+
+```kotlin
+@Service
+class StreamingChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun streamingConversation() {
+        val chat = geminiChatGenerator.createSession()
+
+        // 스트리밍으로 첫 메시지 전송
+        chat.sendMessageStream("이야기를 들려주세요") { chunk ->
+            print(chunk)  // 각 단어가 도착하는 즉시 출력
+        }
+
+        println("\n---")
+
+        // 후속 메시지 (AI가 이야기를 기억함)
+        chat.sendMessageStream("주인공의 이름이 뭐였죠?") { chunk ->
+            print(chunk)
+        }
+    }
+}
+```
+
+#### 여러 채팅 세션 관리
+
+```kotlin
+@Service
+class MultiChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    private val userSessions = mutableMapOf<String, GeminiChatGenerator.ChatSession>()
+
+    fun getUserChat(userId: String): GeminiChatGenerator.ChatSession {
+        return userSessions.getOrPut(userId) {
+            geminiChatGenerator.createSession()
+        }
+    }
+
+    fun sendMessageForUser(userId: String, message: String): String? {
+        val chat = getUserChat(userId)
+        return chat.sendMessage(message)
+    }
+
+    fun clearUserHistory(userId: String) {
+        userSessions[userId]?.clearHistory()
+    }
+}
+```
+
+#### 세션별 커스텀 API 키 및 모델 설정
+
+```kotlin
+@Service
+class CustomSessionService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun createCustomSession() {
+        // 특정 API 키와 모델로 세션 생성
+        val chat = geminiChatGenerator.createSession(
+            systemPrompt = "당신은 친절한 어시스턴트입니다",
+            apiKeys = listOf("key1", "key2", "key3"),
+            models = listOf("gemini-2.5-flash", "gemini-2.0-flash")
+        )
+
+        chat.sendMessage("안녕하세요!")
+        // 지정된 API 키와 모델만 사용합니다
+    }
+}
+```
+
+#### 세션 영속성 (내보내기/복원)
+
+장기 대화 저장을 위해 채팅 세션을 저장하고 복원할 수 있습니다:
+
+```kotlin
+@Service
+class SessionPersistenceService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun saveAndRestoreSession() {
+        // 세션 생성 및 사용
+        val chat = geminiChatGenerator.createSession()
+        chat.sendMessage("안녕하세요, 제 이름은 John입니다")
+        chat.sendMessage("저는 프로그래밍을 좋아합니다")
+
+        // 저장을 위해 세션 상태 내보내기
+        val sessionState = chat.exportSession()
+
+        // 데이터베이스, 파일, 캐시 등에 저장
+        saveToDatabase(sessionState)
+
+        // 나중에... 세션 복원
+        val restoredChat = geminiChatGenerator.restoreSession(sessionState)
+
+        // 전체 컨텍스트로 대화 계속하기
+        val response = restoredChat.sendMessage("제가 뭘 좋아하죠?")
+        println(response) // "당신은 프로그래밍을 좋아합니다"
+    }
+
+    private fun saveToDatabase(state: ChatSessionState) {
+        // 구현: state.apiKeys, state.models, state.history 등을 저장
+    }
+}
+```
+
+**ChatSessionState**에 포함된 정보:
+- `apiKeys`: API 키 목록
+- `models`: 모델명 목록
+- `history`: 대화 기록
+- `defaultPrompt`: 기본 시스템 프롬프트
+- `systemPrompt`: 세션별 시스템 프롬프트
+- `baseUrl`: API 기본 URL
 
 ### 구조화된 응답 (데이터 클래스 매핑)
 
