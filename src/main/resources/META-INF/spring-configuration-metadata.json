@@ -9,6 +9,13 @@
   ],
   "properties": [
     {
+      "name": "kemi.gemini.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.hshim.kemi.config.GeminiAutoConfiguration",
+      "description": "Enable or disable Gemini API auto-configuration",
+      "defaultValue": true
+    },
+    {
       "name": "kemi.gemini.api-keys",
       "type": "java.util.List<java.lang.String>",
       "sourceType": "com.hshim.kemi.config.GeminiProperties",
@@ -65,14 +72,24 @@
         {
           "value": "gemini-2.5-flash-lite",
           "description": "Gemini 2.5 Flash Lite - Lightweight version"
+        }
+      ],
+      "providers": [
+        {
+          "name": "any"
+        }
+      ]
+    },
+    {
+      "name": "kemi.gemini.enabled",
+      "values": [
+        {
+          "value": true,
+          "description": "Enable Gemini auto-configuration"
         },
         {
-          "value": "gemini-2.0-flash",
-          "description": "Gemini 2.0 Flash - Previous generation fast model"
-        },
-        {
-          "value": "gemini-2.0-flash-lite",
-          "description": "Gemini 2.0 Flash Lite - Previous generation lightweight"
+          "value": false,
+          "description": "Disable Gemini auto-configuration"
         }
       ]
     }
