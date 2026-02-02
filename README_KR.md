@@ -13,7 +13,7 @@
 - ✅ AI 모델 자동 fallback 지원
 - ✅ 유연한 API 키 설정 (직접 입력 또는 콜백)
 - ✅ 데이터 클래스로의 구조화된 응답 매핑
-- ✅ Imagen API를 이용한 이미지 생성
+- ✅ Gemini 2.5 Flash Image 모델을 이용한 이미지 생성
 - ✅ Vision 지원 (질문 및 채팅에 이미지 입력)
 
 ## 지원 버전
@@ -89,6 +89,9 @@ kemi:
       - gemini-2.5-flash-lite
       - gemini-2.0-flash
       - gemini-2.0-flash-lite
+    image-models:  # 선택: 이미지 생성 모델
+      - gemini-2.5-flash-image
+      - gemini-3-pro-image-preview
 ```
 
 ### API 키 설정 옵션
@@ -355,7 +358,7 @@ class SessionPersistenceService(
 
 ### 이미지 생성
 
-Google의 Imagen API를 사용하여 텍스트 설명으로부터 이미지를 생성할 수 있습니다:
+Gemini 2.5 Flash Image 모델을 사용하여 텍스트 설명으로부터 이미지를 생성할 수 있습니다:
 
 ```kotlin
 @Service
@@ -363,29 +366,44 @@ class ImageService(
     private val geminiImageGenerator: GeminiImageGenerator
 ) {
     fun generateImage() {
-        // 단일 이미지 생성
+        // 이미지 생성
         val images = geminiImageGenerator.generateImage(
             prompt = "산 위로 지는 아름다운 석양"
         )
 
-        images?.forEach { image ->
+        images.forEach { image ->
             // image.base64Data - Base64로 인코딩된 이미지 데이터
             // image.mimeType - 이미지 형식 (예: "image/png")
             saveImage(image.base64Data, image.mimeType)
         }
     }
 
-    fun generateMultipleImages() {
-        // 한 번에 여러 이미지 생성 (1-4개)
+    fun generateWithOptions() {
+        // 커스텀 종횡비와 해상도로 생성
         val images = geminiImageGenerator.generateImage(
-            prompt = "미래의 도시",
-            numberOfImages = 3,
+            prompt = "밤의 미래 도시",
             aspectRatio = "16:9",
-            negativePrompt = "흐릿한, 저품질"
+            imageSize = "4K"
         )
 
-        images?.forEachIndexed { index, image ->
-            println("이미지 ${index + 1}: ${image.mimeType}")
+        images.forEach { image ->
+            println("생성됨: ${image.mimeType}")
+        }
+    }
+
+    fun generateWithReferenceImages() {
+        // 스타일 가이드를 위한 참조 이미지와 함께 생성
+        val referenceImage = ImageData.fromPath("style-reference.jpg")
+
+        val images = geminiImageGenerator.generateImage(
+            prompt = "이 예술적 스타일로 산 풍경을 그려주세요",
+            aspectRatio = "3:2",
+            imageSize = "2K",
+            referenceImages = listOf(referenceImage)
+        )
+
+        images.forEach { image ->
+            println("스타일이 적용된 이미지 생성됨: ${image.mimeType}")
         }
     }
 
@@ -397,7 +415,9 @@ class ImageService(
 }
 ```
 
-**지원되는 종횡비**: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`
+**지원되는 종횡비**: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`
+
+**지원되는 이미지 크기**: `1K`, `2K`, `4K`
 
 ### Vision (이미지 입력)
 
@@ -610,6 +630,7 @@ class FallbackExample(
 | `kemi.gemini.api-keys` | List<String> | ✅ | - | 폴백을 위한 Gemini API 키 목록 (최소 1개 필수) |
 | `kemi.gemini.base-url` | String | ❌ | `https://generativelanguage.googleapis.com` | API 기본 URL |
 | `kemi.gemini.models` | List<String> | ❌ | `["gemini-2.5-pro"]` | 폴백을 위한 모델명 목록 |
+| `kemi.gemini.image-models` | List<String> | ❌ | `["gemini-2.5-flash-image", "gemini-3-pro-image-preview"]` | 폴백을 위한 이미지 생성 모델명 목록 |
 
 ## API 레퍼런스
 
@@ -692,21 +713,21 @@ class FallbackExample(
 
 #### 메서드
 
-- `generateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null): List<GeminiImageResponse.Image>?`
+- `generateImage(prompt: String, aspectRatio: String = "1:1", imageSize: String = "2K", referenceImages: List<ImageData>? = null): List<GeminiImageResponse.Image>`
   - 텍스트 설명으로부터 이미지 생성
   - 파라미터:
     - `prompt`: 이미지의 텍스트 설명
-    - `numberOfImages`: 생성할 이미지 개수 (1-4)
-    - `aspectRatio`: 이미지 종횡비 (1:1, 16:9, 9:16, 4:3, 3:4)
-    - `negativePrompt`: 이미지에서 피해야 할 것
+    - `aspectRatio`: 이미지 종횡비 (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)
+    - `imageSize`: 이미지 해상도 (1K, 2K, 4K)
+    - `referenceImages`: 스타일/콘텐츠 가이드를 위한 선택적 참조 이미지
   - 반환: base64 데이터를 포함한 생성된 이미지 목록
 
-- `directGenerateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null, model: String, apiKey: String): GeminiImageResponse?`
+- `directGenerateImage(prompt: String, aspectRatio: String = "1:1", imageSize: String = "2K", referenceImages: List<ImageData>? = null, model: String, apiKey: String): GeminiImageResponse?`
   - 특정 모델과 API 키를 사용한 직접 이미지 생성
   - 반환: 전체 GeminiImageResponse 객체
 
 - `currentModel: String`
-  - 현재 활성화된 Imagen 모델명을 반환하는 프로퍼티
+  - 현재 활성화된 이미지 생성 모델명을 반환하는 프로퍼티
 
 - `currentApiKey: String`
   - 현재 활성화된 API 키를 반환하는 프로퍼티

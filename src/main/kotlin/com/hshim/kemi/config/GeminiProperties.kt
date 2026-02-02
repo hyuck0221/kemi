@@ -24,7 +24,13 @@ data class GeminiProperties(
      * List of Gemini model names to use
      * @default [gemini-pro]
      */
-    val models: List<String> = listOf("gemini-2.5-pro")
+    val models: List<String> = listOf("gemini-2.5-pro"),
+
+    /**
+     * List of Gemini image generation model names
+     * @default [gemini-2.5-flash-image]
+     */
+    val imageModels: List<String> = listOf("gemini-2.5-flash-image", "gemini-3-pro-image-preview")
 ) {
     /**
      * API Key provider (can be set programmatically for callback support)

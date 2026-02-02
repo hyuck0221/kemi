@@ -4,27 +4,60 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
- * Response model for Gemini Imagen API
+ * Response model for Gemini Image Generation API
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class GeminiImageResponse(
-    val predictions: List<Prediction>?
+    val candidates: List<Candidate>?
 ) {
-    val images: List<Image>?
-        get() = predictions?.mapNotNull { it.image }
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class Candidate(
+        val content: Content?
+    )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    data class Prediction(
-        @JsonProperty("bytesBase64Encoded")
-        val bytesBase64Encoded: String?,
+    data class Content(
+        val parts: List<Part>?
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class Part(
+        val text: String? = null,
+        val inlineData: InlineData? = null
+    )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class InlineData(
         @JsonProperty("mimeType")
-        val mimeType: String?
-    ) {
-        val image: Image?
-            get() = if (bytesBase64Encoded != null && mimeType != null) {
-                Image(bytesBase64Encoded, mimeType)
-            } else null
-    }
+        val mimeType: String?,
+        @JsonProperty("data")
+        val data: String? // base64 encoded
+    )
+
+    /**
+     * Extract all generated images from the response
+     */
+    val images: List<Image>
+        get() = candidates
+            ?.flatMap { it.content?.parts ?: emptyList() }
+            ?.mapNotNull { part ->
+                part.inlineData?.let { inlineData ->
+                    if (inlineData.mimeType != null && inlineData.data != null) {
+                        Image(inlineData.data, inlineData.mimeType)
+                    } else null
+                }
+            } ?: emptyList()
+
+    /**
+     * Extract text description from the response
+     */
+    val description: String?
+        get() = candidates
+            ?.firstOrNull()
+            ?.content
+            ?.parts
+            ?.firstOrNull { it.text != null }
+            ?.text
 
     data class Image(
         val base64Data: String,

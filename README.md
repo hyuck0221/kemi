@@ -13,7 +13,7 @@ A lightweight Spring Boot library for integrating Google's Gemini API with autom
 - ✅ Automatic model fallback
 - ✅ Flexible API key configuration (direct value or callback)
 - ✅ Structured response mapping to data classes
-- ✅ Image generation with Imagen API
+- ✅ Image generation with Gemini 2.5 Flash Image model
 - ✅ Vision support (image input in questions and chat)
 
 ## Requirements
@@ -89,6 +89,9 @@ kemi:
       - gemini-2.5-flash-lite
       - gemini-2.0-flash
       - gemini-2.0-flash-lite
+    image-models:  # Optional: Image generation models
+      - gemini-2.5-flash-image
+      - gemini-3-pro-image-preview
 ```
 
 ### API Key Configuration Options
@@ -355,7 +358,7 @@ class SessionPersistenceService(
 
 ### Image Generation
 
-Generate images from text descriptions using Google's Imagen API:
+Generate images from text descriptions using Gemini 2.5 Flash Image model:
 
 ```kotlin
 @Service
@@ -363,29 +366,44 @@ class ImageService(
     private val geminiImageGenerator: GeminiImageGenerator
 ) {
     fun generateImage() {
-        // Generate a single image
+        // Generate an image
         val images = geminiImageGenerator.generateImage(
             prompt = "A beautiful sunset over mountains"
         )
 
-        images?.forEach { image ->
+        images.forEach { image ->
             // image.base64Data - Base64 encoded image data
             // image.mimeType - Image format (e.g., "image/png")
             saveImage(image.base64Data, image.mimeType)
         }
     }
 
-    fun generateMultipleImages() {
-        // Generate multiple images at once (1-4)
+    fun generateWithOptions() {
+        // Generate with custom aspect ratio and resolution
         val images = geminiImageGenerator.generateImage(
-            prompt = "A futuristic city",
-            numberOfImages = 3,
+            prompt = "A futuristic city at night",
             aspectRatio = "16:9",
-            negativePrompt = "blurry, low quality"
+            imageSize = "4K"
         )
 
-        images?.forEachIndexed { index, image ->
-            println("Image ${index + 1}: ${image.mimeType}")
+        images.forEach { image ->
+            println("Generated: ${image.mimeType}")
+        }
+    }
+
+    fun generateWithReferenceImages() {
+        // Generate image with reference images for style guidance
+        val referenceImage = ImageData.fromPath("style-reference.jpg")
+
+        val images = geminiImageGenerator.generateImage(
+            prompt = "A mountain landscape in this artistic style",
+            aspectRatio = "3:2",
+            imageSize = "2K",
+            referenceImages = listOf(referenceImage)
+        )
+
+        images.forEach { image ->
+            println("Generated styled image: ${image.mimeType}")
         }
     }
 
@@ -397,7 +415,9 @@ class ImageService(
 }
 ```
 
-**Supported aspect ratios**: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`
+**Supported aspect ratios**: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`
+
+**Supported image sizes**: `1K`, `2K`, `4K`
 
 ### Vision (Image Input)
 
@@ -610,6 +630,7 @@ class FallbackExample(
 | `kemi.gemini.api-keys` | List<String> | ✅ | - | List of Gemini API Keys for fallback (at least 1 required) |
 | `kemi.gemini.base-url` | String | ❌ | `https://generativelanguage.googleapis.com` | API base URL |
 | `kemi.gemini.models` | List<String> | ❌ | `["gemini-2.5-pro"]` | List of model names for fallback |
+| `kemi.gemini.image-models` | List<String> | ❌ | `["gemini-2.5-flash-image", "gemini-3-pro-image-preview"]` | List of image generation model names for fallback |
 
 ## API Reference
 
@@ -692,21 +713,21 @@ class FallbackExample(
 
 #### Methods
 
-- `generateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null): List<GeminiImageResponse.Image>?`
+- `generateImage(prompt: String, aspectRatio: String = "1:1", imageSize: String = "2K", referenceImages: List<ImageData>? = null): List<GeminiImageResponse.Image>`
   - Generate images from text description
   - Parameters:
     - `prompt`: Text description of the image
-    - `numberOfImages`: Number of images to generate (1-4)
-    - `aspectRatio`: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
-    - `negativePrompt`: What to avoid in the image
+    - `aspectRatio`: Image aspect ratio (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)
+    - `imageSize`: Image resolution (1K, 2K, 4K)
+    - `referenceImages`: Optional reference images for style/content guidance
   - Returns: List of generated images with base64 data
 
-- `directGenerateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null, model: String, apiKey: String): GeminiImageResponse?`
+- `directGenerateImage(prompt: String, aspectRatio: String = "1:1", imageSize: String = "2K", referenceImages: List<ImageData>? = null, model: String, apiKey: String): GeminiImageResponse?`
   - Direct image generation with specific model and API key
   - Returns: Full GeminiImageResponse object
 
 - `currentModel: String`
-  - Property that returns currently active Imagen model name
+  - Property that returns currently active image generation model name
 
 - `currentApiKey: String`
   - Property that returns currently active API key
