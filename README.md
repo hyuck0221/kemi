@@ -13,6 +13,8 @@ A lightweight Spring Boot library for integrating Google's Gemini API with autom
 - ✅ Automatic model fallback
 - ✅ Flexible API key configuration (direct value or callback)
 - ✅ Structured response mapping to data classes
+- ✅ Image generation with Imagen API
+- ✅ Vision support (image input in questions and chat)
 
 ## Requirements
 
@@ -351,6 +353,153 @@ class SessionPersistenceService(
 - `systemPrompt`: Session-specific system prompt
 - `baseUrl`: API base URL
 
+### Image Generation
+
+Generate images from text descriptions using Google's Imagen API:
+
+```kotlin
+@Service
+class ImageService(
+    private val geminiImageGenerator: GeminiImageGenerator
+) {
+    fun generateImage() {
+        // Generate a single image
+        val images = geminiImageGenerator.generateImage(
+            prompt = "A beautiful sunset over mountains"
+        )
+
+        images?.forEach { image ->
+            // image.base64Data - Base64 encoded image data
+            // image.mimeType - Image format (e.g., "image/png")
+            saveImage(image.base64Data, image.mimeType)
+        }
+    }
+
+    fun generateMultipleImages() {
+        // Generate multiple images at once (1-4)
+        val images = geminiImageGenerator.generateImage(
+            prompt = "A futuristic city",
+            numberOfImages = 3,
+            aspectRatio = "16:9",
+            negativePrompt = "blurry, low quality"
+        )
+
+        images?.forEachIndexed { index, image ->
+            println("Image ${index + 1}: ${image.mimeType}")
+        }
+    }
+
+    private fun saveImage(base64Data: String, mimeType: String) {
+        // Implementation to save image
+        val bytes = Base64.getDecoder().decode(base64Data)
+        // Save bytes to file...
+    }
+}
+```
+
+**Supported aspect ratios**: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`
+
+### Vision (Image Input)
+
+Send images along with your questions for image analysis and understanding:
+
+#### Basic Image Analysis
+
+```kotlin
+import com.hshim.kemi.model.ImageData
+
+@Service
+class VisionService(
+    private val geminiGenerator: GeminiGenerator
+) {
+    fun analyzeImage() {
+        // Load image from file
+        val image = ImageData.fromPath("/path/to/photo.jpg")
+
+        val answer = geminiGenerator.askWithImages(
+            question = "What's in this image?",
+            images = listOf(image)
+        )
+        println(answer)
+    }
+
+    fun compareImages() {
+        // Analyze multiple images at once
+        val image1 = ImageData.fromFile(File("photo1.jpg"))
+        val image2 = ImageData.fromFile(File("photo2.png"))
+
+        val answer = geminiGenerator.askWithImages(
+            question = "What are the differences between these two images?",
+            images = listOf(image1, image2)
+        )
+        println(answer)
+    }
+}
+```
+
+#### Vision in Chat Conversations
+
+```kotlin
+@Service
+class VisionChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun analyzeImagesInConversation() {
+        val chat = geminiChatGenerator.createSession()
+
+        // First message with image
+        val image1 = ImageData.fromPath("diagram.png")
+        chat.sendMessageWithImages(
+            message = "What does this diagram show?",
+            images = listOf(image1)
+        )
+
+        // Follow-up question (AI remembers the image context)
+        chat.sendMessage("Can you explain the third component?")
+
+        // Another image in the same conversation
+        val image2 = ImageData.fromPath("chart.png")
+        chat.sendMessageWithImages(
+            message = "How does this chart relate to the previous diagram?",
+            images = listOf(image2)
+        )
+    }
+
+    fun streamVisionResponse() {
+        val chat = geminiChatGenerator.createSession()
+        val image = ImageData.fromFile(File("complex-image.jpg"))
+
+        // Stream response for image analysis
+        chat.sendMessageStreamWithImages(
+            message = "Describe this image in detail",
+            images = listOf(image)
+        ) { chunk ->
+            print(chunk)  // Prints analysis as it's generated
+        }
+    }
+}
+```
+
+#### ImageData Creation Options
+
+```kotlin
+// From file path
+val image1 = ImageData.fromPath("/path/to/image.jpg")
+
+// From File object
+val image2 = ImageData.fromFile(File("photo.png"))
+
+// From byte array
+val bytes = getImageBytes()
+val image3 = ImageData.fromBytes(bytes, "image/jpeg")
+
+// From base64 string
+val base64String = getBase64Image()
+val image4 = ImageData.fromBase64(base64String, "image/png")
+```
+
+**Supported image formats**: JPEG, PNG, GIF, WebP
+
 ### Structured Response (Data Class Mapping)
 
 #### Basic Usage
@@ -472,6 +621,14 @@ class FallbackExample(
   - Basic question/answer with optional system prompt
   - Returns: Generated text response
 
+- `askWithImages(question: String, images: List<ImageData>, prompt: String? = null): String?`
+  - Question/answer with image input for vision capabilities
+  - Returns: Generated text response analyzing the images
+
+- `askStream(question: String, prompt: String? = null, handler: StreamResponseHandler): String?`
+  - Real-time streaming response with callback handler
+  - Returns: Complete response text
+
 - `askWithClass<T>(question: String, prompt: String? = null): T?`
   - Structured response mapped to data class
   - Returns: Parsed instance of type T
@@ -480,8 +637,76 @@ class FallbackExample(
   - Direct API call with specific model and optional custom API key
   - Returns: Full GeminiResponse object
 
+- `directAskWithImages(question: String, images: List<ImageData>, model: String, prompt: String? = null, apiKey: String): GeminiResponse?`
+  - Direct API call with images using specific model and API key
+  - Returns: Full GeminiResponse object
+
 - `currentModel: String`
   - Property that returns currently active model name
+
+- `currentApiKey: String`
+  - Property that returns currently active API key
+
+### GeminiChatGenerator
+
+#### Methods
+
+- `createSession(systemPrompt: String? = null, apiKeys: List<String>? = null, models: List<String>? = null): ChatSession`
+  - Create a new chat session with optional configuration
+  - Returns: ChatSession instance
+
+- `restoreSession(state: ChatSessionState): ChatSession`
+  - Restore a chat session from saved state
+  - Returns: ChatSession instance
+
+#### ChatSession Methods
+
+- `sendMessage(message: String): String?`
+  - Send a text message and get response
+  - Returns: AI response text
+
+- `sendMessageWithImages(message: String, images: List<ImageData>): String?`
+  - Send a message with images and get response
+  - Returns: AI response text
+
+- `sendMessageStream(message: String, handler: StreamResponseHandler): String?`
+  - Send a message with streaming response
+  - Returns: Complete response text
+
+- `sendMessageStreamWithImages(message: String, images: List<ImageData>, handler: StreamResponseHandler): String?`
+  - Send a message with images and streaming response
+  - Returns: Complete response text
+
+- `getHistory(): List<ChatMessage>`
+  - Get conversation history
+  - Returns: List of chat messages
+
+- `clearHistory()`
+  - Clear conversation history
+
+- `exportSession(): ChatSessionState`
+  - Export session state for persistence
+  - Returns: ChatSessionState
+
+### GeminiImageGenerator
+
+#### Methods
+
+- `generateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null): List<GeminiImageResponse.Image>?`
+  - Generate images from text description
+  - Parameters:
+    - `prompt`: Text description of the image
+    - `numberOfImages`: Number of images to generate (1-4)
+    - `aspectRatio`: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+    - `negativePrompt`: What to avoid in the image
+  - Returns: List of generated images with base64 data
+
+- `directGenerateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null, model: String, apiKey: String): GeminiImageResponse?`
+  - Direct image generation with specific model and API key
+  - Returns: Full GeminiImageResponse object
+
+- `currentModel: String`
+  - Property that returns currently active Imagen model name
 
 - `currentApiKey: String`
   - Property that returns currently active API key

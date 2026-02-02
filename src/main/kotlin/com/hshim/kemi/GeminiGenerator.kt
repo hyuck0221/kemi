@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.hshim.kemi.config.GeminiProperties
 import com.hshim.kemi.model.GeminiRequest
 import com.hshim.kemi.model.GeminiResponse
-import com.hshim.kemi.model.GeminiStreamResponse
+import com.hshim.kemi.model.ImageData
 import com.hshim.kemi.model.StreamResponseHandler
 import com.hshim.kemi.schema.SchemaGenerator
 import com.hshim.kemi.schema.SchemaGenerator.processStreamResponse
@@ -60,6 +60,52 @@ class GeminiGenerator(
         } catch (e: Exception) {
             fallback().ask(question, prompt)
         }
+    }
+
+    /**
+     * Ask a question with images
+     * @param question The question text
+     * @param images List of images to include
+     * @param prompt Optional system prompt
+     * @return Response text or null if failed
+     */
+    fun askWithImages(
+        question: String,
+        images: List<ImageData>,
+        prompt: String? = null
+    ): String? {
+        return try {
+            val response = directAskWithImages(question, images, currentModel, prompt)
+            fallbackCnt = 0
+            response?.answer
+        } catch (e: Exception) {
+            fallback().askWithImages(question, images, prompt)
+        }
+    }
+
+    /**
+     * Direct request with images using specific model and API key
+     */
+    fun directAskWithImages(
+        question: String,
+        images: List<ImageData>,
+        model: String,
+        prompt: String? = null,
+        apiKey: String = currentApiKey
+    ): GeminiResponse? {
+        val url = properties.generateContentUrl(model, apiKey)
+        val parts = mutableListOf<GeminiRequest.Part>()
+        parts.add(GeminiRequest.Part.text(question))
+        parts.addAll(images.map { GeminiRequest.Part.image(it) })
+
+        val requestBody = GeminiRequest(parts, defaultPrompt, prompt)
+
+        val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
+        return restTemplate.postForObject(
+            url,
+            HttpEntity(requestBody, headers),
+            GeminiResponse::class.java
+        )
     }
 
     inline fun <reified T : Any> askWithClass(question: String, prompt: String? = null): T? {

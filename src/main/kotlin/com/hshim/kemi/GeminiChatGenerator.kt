@@ -122,7 +122,7 @@ class GeminiChatGenerator(
          */
         fun sendMessage(message: String): String? {
             // Add user message to history
-            history.add(ChatMessage(ChatMessage.Role.USER, message))
+            history.add(ChatMessage.text(ChatMessage.Role.USER, message))
 
             return try {
                 val response = directSendMessage()
@@ -130,13 +130,39 @@ class GeminiChatGenerator(
 
                 // Add model response to history
                 response?.answer?.let { answer ->
-                    history.add(ChatMessage(ChatMessage.Role.MODEL, answer))
+                    history.add(ChatMessage.text(ChatMessage.Role.MODEL, answer))
                     answer
                 }
             } catch (e: Exception) {
                 // Remove last user message if failed
                 history.removeLastOrNull()
                 fallback().sendMessage(message)
+            }
+        }
+
+        /**
+         * Send a message with images and get response
+         * @param message Text message
+         * @param images List of images to include
+         * @return Response text or null if failed
+         */
+        fun sendMessageWithImages(message: String, images: List<ImageData>): String? {
+            // Add user message with images to history
+            history.add(ChatMessage.withImages(ChatMessage.Role.USER, message, images))
+
+            return try {
+                val response = directSendMessage()
+                fallbackCnt = 0
+
+                // Add model response to history
+                response?.answer?.let { answer ->
+                    history.add(ChatMessage.text(ChatMessage.Role.MODEL, answer))
+                    answer
+                }
+            } catch (e: Exception) {
+                // Remove last user message if failed
+                history.removeLastOrNull()
+                fallback().sendMessageWithImages(message, images)
             }
         }
 
@@ -148,7 +174,7 @@ class GeminiChatGenerator(
          */
         fun sendMessageStream(message: String, handler: StreamResponseHandler): String? {
             // Add user message to history
-            history.add(ChatMessage(ChatMessage.Role.USER, message))
+            history.add(ChatMessage.text(ChatMessage.Role.USER, message))
 
             return try {
                 val response = directSendMessageStream(handler)
@@ -156,7 +182,7 @@ class GeminiChatGenerator(
 
                 // Add complete model response to history
                 response?.also { answer ->
-                    history.add(ChatMessage(ChatMessage.Role.MODEL, answer))
+                    history.add(ChatMessage.text(ChatMessage.Role.MODEL, answer))
                 }
             } catch (e: Exception) {
                 // Remove last user message if failed
@@ -166,10 +192,40 @@ class GeminiChatGenerator(
         }
 
         /**
+         * Send message with images and streaming response
+         * @param message Text message
+         * @param images List of images to include
+         * @param handler Callback for each chunk of response
+         * @return Complete response text
+         */
+        fun sendMessageStreamWithImages(
+            message: String,
+            images: List<ImageData>,
+            handler: StreamResponseHandler
+        ): String? {
+            // Add user message with images to history
+            history.add(ChatMessage.withImages(ChatMessage.Role.USER, message, images))
+
+            return try {
+                val response = directSendMessageStream(handler)
+                fallbackCnt = 0
+
+                // Add complete model response to history
+                response?.also { answer ->
+                    history.add(ChatMessage.text(ChatMessage.Role.MODEL, answer))
+                }
+            } catch (e: Exception) {
+                // Remove last user message if failed
+                history.removeLastOrNull()
+                fallback().sendMessageStreamWithImages(message, images, handler)
+            }
+        }
+
+        /**
          * Send message with custom API key (does not trigger fallback)
          */
         fun sendMessage(message: String, customApiKey: String): String? {
-            history.add(ChatMessage(ChatMessage.Role.USER, message))
+            history.add(ChatMessage.text(ChatMessage.Role.USER, message))
 
             val url = generateContentUrl(currentModel, customApiKey)
             val requestBody = GeminiChatRequest.fromHistory(history, defaultPrompt, systemPrompt)
@@ -182,7 +238,7 @@ class GeminiChatGenerator(
             )
 
             return response?.answer?.also { answer ->
-                history.add(ChatMessage(ChatMessage.Role.MODEL, answer))
+                history.add(ChatMessage.text(ChatMessage.Role.MODEL, answer))
             }
         }
 

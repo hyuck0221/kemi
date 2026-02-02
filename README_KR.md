@@ -13,6 +13,8 @@
 - ✅ AI 모델 자동 fallback 지원
 - ✅ 유연한 API 키 설정 (직접 입력 또는 콜백)
 - ✅ 데이터 클래스로의 구조화된 응답 매핑
+- ✅ Imagen API를 이용한 이미지 생성
+- ✅ Vision 지원 (질문 및 채팅에 이미지 입력)
 
 ## 지원 버전
 
@@ -351,6 +353,153 @@ class SessionPersistenceService(
 - `systemPrompt`: 세션별 시스템 프롬프트
 - `baseUrl`: API 기본 URL
 
+### 이미지 생성
+
+Google의 Imagen API를 사용하여 텍스트 설명으로부터 이미지를 생성할 수 있습니다:
+
+```kotlin
+@Service
+class ImageService(
+    private val geminiImageGenerator: GeminiImageGenerator
+) {
+    fun generateImage() {
+        // 단일 이미지 생성
+        val images = geminiImageGenerator.generateImage(
+            prompt = "산 위로 지는 아름다운 석양"
+        )
+
+        images?.forEach { image ->
+            // image.base64Data - Base64로 인코딩된 이미지 데이터
+            // image.mimeType - 이미지 형식 (예: "image/png")
+            saveImage(image.base64Data, image.mimeType)
+        }
+    }
+
+    fun generateMultipleImages() {
+        // 한 번에 여러 이미지 생성 (1-4개)
+        val images = geminiImageGenerator.generateImage(
+            prompt = "미래의 도시",
+            numberOfImages = 3,
+            aspectRatio = "16:9",
+            negativePrompt = "흐릿한, 저품질"
+        )
+
+        images?.forEachIndexed { index, image ->
+            println("이미지 ${index + 1}: ${image.mimeType}")
+        }
+    }
+
+    private fun saveImage(base64Data: String, mimeType: String) {
+        // 이미지 저장 구현
+        val bytes = Base64.getDecoder().decode(base64Data)
+        // 바이트를 파일로 저장...
+    }
+}
+```
+
+**지원되는 종횡비**: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`
+
+### Vision (이미지 입력)
+
+이미지 분석 및 이해를 위해 질문과 함께 이미지를 전송할 수 있습니다:
+
+#### 기본 이미지 분석
+
+```kotlin
+import com.hshim.kemi.model.ImageData
+
+@Service
+class VisionService(
+    private val geminiGenerator: GeminiGenerator
+) {
+    fun analyzeImage() {
+        // 파일에서 이미지 로드
+        val image = ImageData.fromPath("/path/to/photo.jpg")
+
+        val answer = geminiGenerator.askWithImages(
+            question = "이 이미지에 무엇이 있나요?",
+            images = listOf(image)
+        )
+        println(answer)
+    }
+
+    fun compareImages() {
+        // 여러 이미지를 한 번에 분석
+        val image1 = ImageData.fromFile(File("photo1.jpg"))
+        val image2 = ImageData.fromFile(File("photo2.png"))
+
+        val answer = geminiGenerator.askWithImages(
+            question = "이 두 이미지의 차이점은 무엇인가요?",
+            images = listOf(image1, image2)
+        )
+        println(answer)
+    }
+}
+```
+
+#### 채팅 대화에서 Vision 사용
+
+```kotlin
+@Service
+class VisionChatService(
+    private val geminiChatGenerator: GeminiChatGenerator
+) {
+    fun analyzeImagesInConversation() {
+        val chat = geminiChatGenerator.createSession()
+
+        // 이미지와 함께 첫 메시지
+        val image1 = ImageData.fromPath("diagram.png")
+        chat.sendMessageWithImages(
+            message = "이 다이어그램은 무엇을 보여주나요?",
+            images = listOf(image1)
+        )
+
+        // 후속 질문 (AI가 이미지 컨텍스트를 기억함)
+        chat.sendMessage("세 번째 구성 요소를 설명해 주실 수 있나요?")
+
+        // 같은 대화에서 다른 이미지
+        val image2 = ImageData.fromPath("chart.png")
+        chat.sendMessageWithImages(
+            message = "이 차트는 이전 다이어그램과 어떤 관련이 있나요?",
+            images = listOf(image2)
+        )
+    }
+
+    fun streamVisionResponse() {
+        val chat = geminiChatGenerator.createSession()
+        val image = ImageData.fromFile(File("complex-image.jpg"))
+
+        // 이미지 분석을 스트리밍 응답으로 받기
+        chat.sendMessageStreamWithImages(
+            message = "이 이미지를 자세히 설명해주세요",
+            images = listOf(image)
+        ) { chunk ->
+            print(chunk)  // 분석이 생성되는 대로 출력
+        }
+    }
+}
+```
+
+#### ImageData 생성 옵션
+
+```kotlin
+// 파일 경로에서
+val image1 = ImageData.fromPath("/path/to/image.jpg")
+
+// File 객체에서
+val image2 = ImageData.fromFile(File("photo.png"))
+
+// 바이트 배열에서
+val bytes = getImageBytes()
+val image3 = ImageData.fromBytes(bytes, "image/jpeg")
+
+// base64 문자열에서
+val base64String = getBase64Image()
+val image4 = ImageData.fromBase64(base64String, "image/png")
+```
+
+**지원되는 이미지 형식**: JPEG, PNG, GIF, WebP
+
 ### 구조화된 응답 (데이터 클래스 매핑)
 
 #### 기본 사용법
@@ -472,6 +621,14 @@ class FallbackExample(
   - 선택적 시스템 프롬프트를 사용한 기본 질의응답
   - 반환: 생성된 텍스트 응답
 
+- `askWithImages(question: String, images: List<ImageData>, prompt: String? = null): String?`
+  - Vision 기능을 위한 이미지 입력과 함께 질의응답
+  - 반환: 이미지를 분석한 텍스트 응답
+
+- `askStream(question: String, prompt: String? = null, handler: StreamResponseHandler): String?`
+  - 콜백 핸들러를 사용한 실시간 스트리밍 응답
+  - 반환: 완전한 응답 텍스트
+
 - `askWithClass<T>(question: String, prompt: String? = null): T?`
   - 데이터 클래스로 매핑된 구조화된 응답
   - 반환: T 타입의 파싱된 인스턴스
@@ -480,8 +637,76 @@ class FallbackExample(
   - 특정 모델과 선택적 커스텀 API 키를 사용한 직접 API 호출
   - 반환: 전체 GeminiResponse 객체
 
+- `directAskWithImages(question: String, images: List<ImageData>, model: String, prompt: String? = null, apiKey: String): GeminiResponse?`
+  - 특정 모델과 API 키를 사용한 이미지 포함 직접 API 호출
+  - 반환: 전체 GeminiResponse 객체
+
 - `currentModel: String`
   - 현재 활성화된 모델명을 반환하는 프로퍼티
+
+- `currentApiKey: String`
+  - 현재 활성화된 API 키를 반환하는 프로퍼티
+
+### GeminiChatGenerator
+
+#### 메서드
+
+- `createSession(systemPrompt: String? = null, apiKeys: List<String>? = null, models: List<String>? = null): ChatSession`
+  - 선택적 설정으로 새 채팅 세션 생성
+  - 반환: ChatSession 인스턴스
+
+- `restoreSession(state: ChatSessionState): ChatSession`
+  - 저장된 상태에서 채팅 세션 복원
+  - 반환: ChatSession 인스턴스
+
+#### ChatSession 메서드
+
+- `sendMessage(message: String): String?`
+  - 텍스트 메시지를 보내고 응답 받기
+  - 반환: AI 응답 텍스트
+
+- `sendMessageWithImages(message: String, images: List<ImageData>): String?`
+  - 이미지와 함께 메시지를 보내고 응답 받기
+  - 반환: AI 응답 텍스트
+
+- `sendMessageStream(message: String, handler: StreamResponseHandler): String?`
+  - 스트리밍 응답으로 메시지 보내기
+  - 반환: 완전한 응답 텍스트
+
+- `sendMessageStreamWithImages(message: String, images: List<ImageData>, handler: StreamResponseHandler): String?`
+  - 이미지와 함께 스트리밍 응답으로 메시지 보내기
+  - 반환: 완전한 응답 텍스트
+
+- `getHistory(): List<ChatMessage>`
+  - 대화 기록 가져오기
+  - 반환: 채팅 메시지 목록
+
+- `clearHistory()`
+  - 대화 기록 지우기
+
+- `exportSession(): ChatSessionState`
+  - 영속성을 위한 세션 상태 내보내기
+  - 반환: ChatSessionState
+
+### GeminiImageGenerator
+
+#### 메서드
+
+- `generateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null): List<GeminiImageResponse.Image>?`
+  - 텍스트 설명으로부터 이미지 생성
+  - 파라미터:
+    - `prompt`: 이미지의 텍스트 설명
+    - `numberOfImages`: 생성할 이미지 개수 (1-4)
+    - `aspectRatio`: 이미지 종횡비 (1:1, 16:9, 9:16, 4:3, 3:4)
+    - `negativePrompt`: 이미지에서 피해야 할 것
+  - 반환: base64 데이터를 포함한 생성된 이미지 목록
+
+- `directGenerateImage(prompt: String, numberOfImages: Int = 1, aspectRatio: String = "1:1", negativePrompt: String? = null, model: String, apiKey: String): GeminiImageResponse?`
+  - 특정 모델과 API 키를 사용한 직접 이미지 생성
+  - 반환: 전체 GeminiImageResponse 객체
+
+- `currentModel: String`
+  - 현재 활성화된 Imagen 모델명을 반환하는 프로퍼티
 
 - `currentApiKey: String`
   - 현재 활성화된 API 키를 반환하는 프로퍼티

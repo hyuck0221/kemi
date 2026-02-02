@@ -2,6 +2,7 @@ package com.hshim.kemi.config
 
 import com.hshim.kemi.GeminiChatGenerator
 import com.hshim.kemi.GeminiGenerator
+import com.hshim.kemi.GeminiImageGenerator
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -11,8 +12,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * Auto-configuration for Gemini API generators
  *
- * This configuration automatically creates GeminiGenerator and GeminiChatGenerator beans
- * when kemi.gemini.enabled is true (default)
+ * This configuration automatically creates GeminiGenerator, GeminiChatGenerator,
+ * and GeminiImageGenerator beans when kemi.gemini.enabled is true (default)
  */
 @Configuration
 @EnableConfigurationProperties(GeminiProperties::class)
@@ -22,14 +23,14 @@ import org.springframework.context.annotation.Configuration
     havingValue = "true",
     matchIfMissing = true
 )
-class GeminiAutoConfiguration {
+open class GeminiAutoConfiguration {
 
     /**
      * Creates a GeminiGenerator bean using properties from application.yml
      */
     @Bean
     @ConditionalOnMissingBean
-    fun geminiGenerator(properties: GeminiProperties): GeminiGenerator {
+    open fun geminiGenerator(properties: GeminiProperties): GeminiGenerator {
         return GeminiGenerator(properties)
     }
 
@@ -38,7 +39,16 @@ class GeminiAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    fun geminiChatGenerator(properties: GeminiProperties): GeminiChatGenerator {
+    open fun geminiChatGenerator(properties: GeminiProperties): GeminiChatGenerator {
         return GeminiChatGenerator(properties)
+    }
+
+    /**
+     * Creates a GeminiImageGenerator bean for image generation using Imagen API
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    open fun geminiImageGenerator(properties: GeminiProperties): GeminiImageGenerator {
+        return GeminiImageGenerator(properties)
     }
 }
